@@ -2,30 +2,30 @@ import API from "@shared/api";
 import { ChangeEvent, FormEvent, type ReactElement, useState } from "react";
 import { ValidationInputText } from "@shared/common/ValidationInputText";
 import { ValidationPassword } from "@shared/common/ValidationPassword";
-import { setIsLoading } from "@store/slices/Application";
+import { addNotification } from "@store/slices/Notifications";
 import { AuthErrorText } from "@common/AuthErrorText";
+import { useRouter } from "next/navigation";
 import { Button } from "primereact/button";
 import { useDispatch } from "react-redux";
-import { IAuthSession } from "@entities/User/types";
-import { setData, updateAuthSession } from "@store/slices/User";
-import { useRouter } from "next/navigation";
+import {
+    AnimatedComponentWrapper,
+    ComponentAnimationsTypes,
+} from "@shared/wrappers/AnimatedComponentWrapper";
 import useFormValidation, {
     FormValidationsFieldsIds,
 } from "@hooks/useFormValidation";
 import {
     ApiEndpoints,
-    routesData,
+    NotificationsMessages,
+    NotificationsSeverityTypes,
     signUpValidationConfig,
     ValidationErrors,
 } from "@utils/constants";
-import {
-    AnimatedComponentWrapper,
-    ComponentAnimationsTypes,
-} from "@shared/wrappers/AnimatedComponentWrapper";
 import ErrorParser, {
     SpecialErrorMessages,
 } from "@shared/services/ErrorParser";
 import "./style.css";
+import { IAuthBody, IAuthSession } from "@entities/User/types";
 
 const SignUpForm = (): ReactElement => {
     const dispatch = useDispatch();
@@ -48,7 +48,7 @@ const SignUpForm = (): ReactElement => {
         try {
             setIsLoading(true);
 
-            const authSession: IAuthSession = await API.apiRequest(
+            await API.apiRequest<IAuthSession, IAuthBody>(
                 "post",
                 ApiEndpoints.REGISTRATION,
                 {
@@ -57,14 +57,24 @@ const SignUpForm = (): ReactElement => {
                 }
             );
 
-            dispatch(updateAuthSession(authSession.user));
+            dispatch(
+                addNotification({
+                    text: NotificationsMessages.USER_REGISTERED,
+                    severity: NotificationsSeverityTypes.SUCCESS,
+                })
+            );
 
-            router.push(routesData.LOBBY.path);
+            router.refresh();
         } catch (error: unknown) {
             const errorMessage: string = ErrorParser.parseAxiosError(error);
 
             if (errorMessage === SpecialErrorMessages.USER_ALREADY_EXIST) {
-                router.push(routesData.LOBBY.path);
+                dispatch(
+                    addNotification({
+                        text: NotificationsMessages.ALREADY_REGISTERED,
+                        severity: NotificationsSeverityTypes.WARN,
+                    })
+                );
 
                 return;
             }
@@ -114,7 +124,7 @@ const SignUpForm = (): ReactElement => {
                 <Button
                     type="submit"
                     label="Sign Up"
-                    className="auth-form-button typography-body"
+                    className="auth-form-button"
                     disabled={isEmptyField || !isValid}
                     loading={isLoading}
                 />
